@@ -16,6 +16,23 @@ renderer.setClearColor(0x000000, 0);
 const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
 scene.add(light);
 
+const destinations = {
+  "about me": { x: 50, z: 0 },
+  "projects": { x: 150, z: 0 },
+  "contact": { x: 250, z: 0 }
+};
+
+function navigate() {
+  const input = document.getElementById("destinationInput").value.toLowerCase();
+  const dest = destinations[input];
+  if (dest) {
+    showMarker(dest);
+    setTargetDestination(dest);
+  } else {
+    alert("Destination not found.");
+  }
+}
+
 // --- Road parameters ---
 const roadWidth = 25;
 const roadSegmentLength = 50;
@@ -183,14 +200,14 @@ let taxi = null;
 loader.load('/models/taxi.glb', (gltf) => {
   taxi = gltf.scene;
   taxi.scale.set(0.5, 0.5, 0.5);
-  taxi.position.set(0, 0, 0);
+  taxi.position.set(0, 0, 230);
   scene.add(taxi);
 }, undefined, console.error);
 
 let house = null; 
 loader.load('/models/House_Building_Blend.glb', (gltf) => {
   house = gltf.scene;
-  for (let z = -200; z <= 200; z += 4) {
+  for (let z = -215; z <= 220; z += 30) {
     const houseClone = house.clone();     // Left side
     const houseClone2 = house.clone();    // Right side
     houseClone.scale.set(2,2,2);
@@ -205,6 +222,23 @@ loader.load('/models/House_Building_Blend.glb', (gltf) => {
   }
 }, undefined, console.error);
 
+let apartment = null; 
+loader.load('/models/Apartment.glb', (gltf) => {
+  apartment = gltf.scene;
+  for (let z = -230; z <= 230; z += 30) {
+    const apartClone = apartment.clone();     // Left side
+    const aptClone = apartment.clone(); 
+    apartClone.scale.set(0.03,0.03,0.03);   // Right side
+    apartClone.position.set(-26, -0.7, z);   // Left side
+    apartClone.rotation.y = -3 * Math.PI / 2;
+    aptClone.scale.set(0.03,0.03,0.03);
+    aptClone.position.set(26, -0.7, z);   // Right side
+    aptClone.rotation.y = -Math.PI / 2;
+
+    scene.add(apartClone);
+    scene.add(aptClone); // 🔧 This line was missing
+  }
+}, undefined, console.error);
 
 // --- Minimap camera setup ---
 const minimapSize = 200; // size in pixels
@@ -236,6 +270,19 @@ window.addEventListener('keyup', (e) => { keysPressed[e.key] = false; });
 
 const speed = 0.2;
 const turnSpeed = 0.03;
+
+// --- Minimap border rectangle ---
+const minimapBorderScene = new THREE.Scene();
+
+const borderSize = 1.05; // slightly larger than minimap camera's view
+const borderGeometry = new THREE.PlaneGeometry(minimapSize * borderSize, minimapSize * borderSize);
+const borderMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+const borderPlane = new THREE.Mesh(borderGeometry, borderMaterial);
+borderPlane.position.z = -1; // move it slightly back
+minimapBorderScene.add(borderPlane);
+
+const borderCamera = new THREE.OrthographicCamera(-minimapSize/2, minimapSize/2, minimapSize/2, -minimapSize/2, 1, 10);
+borderCamera.position.z = 5;
 
 // --- Animate ---
 function animate() {
@@ -279,7 +326,7 @@ function animate() {
   renderer.clear();
   renderer.render(scene, camera);
 
-  // --- Render minimap in top-right corner ---
+
   const padding = 10;
   renderer.setViewport(
     window.innerWidth - minimapSize - padding,
@@ -294,7 +341,13 @@ function animate() {
     minimapSize
   );
   renderer.setScissorTest(true);
-  renderer.render(scene, minimapCamera);
+
+// Draw border background
+renderer.render(minimapBorderScene, borderCamera);
+
+// Draw actual minimap content
+renderer.render(scene, minimapCamera);
+
   renderer.setScissorTest(false);
 }
 
